@@ -25,4 +25,5 @@ API Integration: Seamless integration between frontend and backend using RESTful
 
 # Installation
 
-Clone the repository: git clone https://github.com/jvarada/workout-tracker.git cd workout-tracker
+Clone the repository: [git clone https://github.com/jvarada/workout-tracker.git cd workout-tracker
+](https://github.com/Jethreswar/Workout_Bot.git)
