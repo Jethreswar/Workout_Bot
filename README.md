@@ -387,7 +387,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 **Workout Tracker Team**
 
 - GitHub: [@Jethreswar](https://github.com/Jethreswar)
-- Project Link: [https://github.com/Jethreswar/workout-tracker](https://github.com/Jethreswar/workout-tracker)
+- Project Link: [https://github.com/Jethreswar/Workout_Bot](https://github.com/Jethreswar/Workout_Bot)
 
 ---
 
