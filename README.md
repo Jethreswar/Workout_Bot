@@ -30,7 +30,6 @@ A comprehensive full-stack workout tracking application built with the MERN stac
 - **Responsive Design** for seamless cross-device experience
 - **Advanced Filtering & Sorting** for efficient workout organization
 
-<img alt="Workout Tracker Screenshot" src="https://placeholder-for-screenshot.com/" width="100%">
 
 ---
 
