@@ -6,9 +6,8 @@ The project structure is organized into frontend and backend directories. The fr
 
 The main features of this project include:
 
-- User authentication and authorization
 - CRUD operations for managing project data
-- Real-time updates using websockets
+- Real-time updates using WebSockets
 - Integration with MongoDB for data storage
 - Responsive and user-friendly UI design
 
@@ -25,4 +24,4 @@ API Integration: Seamless integration between frontend and backend using RESTful
 
 # Installation
 
-1. Clone the repository: git clone https://github.com/yourusername/workout-tracker.git cd workout-tracker
+1. Clone the repository: git clone https://github.com/Jethreswar/Workout_Bot.git cd Workout_Bot
