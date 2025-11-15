@@ -1,0 +1,337 @@
+/* Workout Analytics Component Styles */
+
+.analytics-container {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+    margin: 20px 0;
+    border: 1px solid #e9ecef;
+}
+
+.analytics-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #f8f9fa;
+}
+
+.analytics-header h3 {
+    margin: 0;
+    color: #333;
+    font-size: 1.4em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ai-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.ai-btn {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 0.9em;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.ai-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+.ai-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.ai-btn.analyze {
+    background: linear-gradient(135deg, #ff6b6b 0%, #ff8e53 100%);
+}
+
+.ai-btn.suggest {
+    background: linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%);
+}
+
+/* Stats Grid */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 25px;
+}
+
+.stat-card {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 10px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    transition: transform 0.2s ease;
+    border: 1px solid #e9ecef;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.stat-icon {
+    font-size: 2em;
+    width: 50px;
+    height: 50px;
+    background: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.stat-info h4 {
+    margin: 0;
+    font-size: 1.8em;
+    color: #333;
+    font-weight: bold;
+}
+
+.stat-info p {
+    margin: 0;
+    color: #666;
+    font-size: 0.9em;
+    font-weight: 500;
+}
+
+/* Category Breakdown */
+.category-breakdown {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.category-breakdown h4 {
+    margin: 0 0 15px 0;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.category-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.category-item {
+    background: white;
+    padding: 12px 15px;
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s ease;
+}
+
+.category-item:hover {
+    transform: translateX(5px);
+}
+
+.category-name {
+    font-weight: 600;
+    color: #333;
+}
+
+.category-stats {
+    display: flex;
+    gap: 15px;
+    font-size: 0.9em;
+}
+
+.category-count {
+    color: #667eea;
+    font-weight: 500;
+}
+
+.category-calories {
+    color: #ff6b6b;
+    font-weight: 500;
+}
+
+/* AI Analysis */
+.ai-analysis {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px;
+    border-radius: 12px;
+    margin-top: 20px;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.ai-analysis h4 {
+    margin: 0 0 15px 0;
+    font-size: 1.2em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.analysis-content {
+    line-height: 1.6;
+}
+
+.analysis-content p {
+    margin: 0 0 10px 0;
+    opacity: 0.95;
+}
+
+.analysis-content p:last-child {
+    margin-bottom: 0;
+}
+
+/* Analysis Prompt */
+.analysis-prompt {
+    text-align: center;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 10px;
+    color: #666;
+    font-style: italic;
+}
+
+/* No Data State */
+.no-data {
+    text-align: center;
+    padding: 40px 20px;
+    color: #666;
+}
+
+.no-data p {
+    font-size: 1.1em;
+    margin-bottom: 20px;
+}
+
+.no-data .ai-btn {
+    font-size: 1em;
+    padding: 12px 24px;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .analytics-header {
+        flex-direction: column;
+        gap: 15px;
+        align-items: stretch;
+    }
+    
+    .ai-buttons {
+        justify-content: center;
+    }
+    
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+    
+    .stat-card {
+        padding: 15px;
+        flex-direction: column;
+        text-align: center;
+        gap: 10px;
+    }
+    
+    .stat-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 1.5em;
+    }
+    
+    .category-item {
+        flex-direction: column;
+        gap: 8px;
+        text-align: center;
+    }
+    
+    .category-stats {
+        justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .analytics-container {
+        margin: 10px 0;
+        padding: 15px;
+    }
+    
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .ai-buttons {
+        flex-direction: column;
+    }
+    
+    .ai-btn {
+        padding: 10px 20px;
+        justify-content: center;
+    }
+}
+
+/* Animation for loading states */
+.ai-btn:disabled {
+    animation: pulse-gentle 2s infinite;
+}
+
+@keyframes pulse-gentle {
+    0%, 100% { opacity: 0.7; }
+    50% { opacity: 0.9; }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .analytics-container {
+        background: #2d3748;
+        color: white;
+        border-color: #4a5568;
+    }
+    
+    .stat-card {
+        background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
+        border-color: #4a5568;
+    }
+    
+    .stat-info h4 {
+        color: white;
+    }
+    
+    .category-breakdown {
+        background: #4a5568;
+    }
+    
+    .category-item {
+        background: #2d3748;
+        color: white;
+    }
+    
+    .analysis-prompt {
+        background: #4a5568;
+        color: #cbd5e0;
+    }
+}
