@@ -29,7 +29,13 @@ pipeline {
                     steps {
                         dir("${BACKEND_DIR}") {
                             echo 'Installing backend dependencies...'
-                            bat 'npm ci'
+                            bat '''
+                                if exist package-lock.json (
+                                    npm ci
+                                ) else (
+                                    npm install
+                                )
+                            '''
                         }
                     }
                 }
@@ -37,7 +43,17 @@ pipeline {
                     steps {
                         dir("${FRONTEND_DIR}") {
                             echo 'Installing frontend dependencies...'
-                            bat 'npm ci'
+                            bat '''
+                                if exist package-lock.json (
+                                    npm ci || (
+                                        echo "npm ci failed, falling back to npm install"
+                                        del package-lock.json
+                                        npm install
+                                )
+                            ) else (
+                                npm install
+                            )
+                            '''
                         }
                     }
                 }
