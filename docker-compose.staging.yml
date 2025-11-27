@@ -1,0 +1,63 @@
+version: "3.8"
+
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: workout-tracker-mongo-staging
+    restart: unless-stopped
+    ports:
+      - "27018:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: workout_tracker_staging
+    volumes:
+      - mongodb_staging_data:/data/db
+    networks:
+      - workout-network
+
+  backend:
+    image: ${DOCKER_REGISTRY}/workout-tracker-backend:${IMAGE_TAG:-latest}
+    container_name: workout-tracker-backend-staging
+    restart: unless-stopped
+    ports:
+      - "4001:4000"
+    environment:
+      NODE_ENV: staging
+      MONGO_URI: mongodb://${MONGO_ROOT_USER}:${MONGO_ROOT_PASSWORD}@mongodb:27017/workout_tracker_staging?authSource=admin
+      PORT: 4000
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+    depends_on:
+      - mongodb
+    networks:
+      - workout-network
+    healthcheck:
+      test: ["CMD", "node", "healthcheck.js"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    image: ${DOCKER_REGISTRY}/workout-tracker-frontend:${IMAGE_TAG:-latest}
+    container_name: workout-tracker-frontend-staging
+    restart: unless-stopped
+    ports:
+      - "3001:80"
+    environment:
+      REACT_APP_API_URL: http://localhost:4001/api
+    depends_on:
+      - backend
+    networks:
+      - workout-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  mongodb_staging_data:
+
+networks:
+  workout-network:
+    driver: bridge

@@ -1,0 +1,17 @@
+node_modules
+npm-debug.log
+.git
+.gitignore
+README.md
+.env
+.nyc_output
+coverage
+.sass-cache
+.DS_Store
+*.log
+*.md
+tests
+__tests__
+.eslintrc.js
+.prettierrc.js
+jest.config.js
