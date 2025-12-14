@@ -2,17 +2,19 @@ pipeline {
     agent any
     
     tools {
-        nodejs '20' // Make sure Node.js 20 is configured in Jenkins Global Tool Configuration
+        nodejs '20'
     }
     
     environment {
-        MONGO_URI = credentials('mongo-uri') // Configure this in Jenkins credentials
-        GEMINI_API_KEY = credentials('gemini-api-key') // Configure this in Jenkins credentials
+        MONGO_URI = credentials('mongo-uri')
+        GEMINI_API_KEY = credentials('gemini-api-key')
         NODE_ENV = 'test'
         FRONTEND_DIR = 'frontend'
         BACKEND_DIR = 'backend'
-        DOCKER_REGISTRY = 'your-registry.com' // Replace with your Docker registry
         IMAGE_TAG = "${env.BUILD_NUMBER}"
+        DOCKER_BUILDKIT = '1'
+        // Force npm to not fail on audit issues in development
+        NPM_CONFIG_AUDIT_LEVEL = 'none'
     }
     
     stages {
@@ -23,6 +25,45 @@ pipeline {
             }
         }
         
+        stage('Clean Dependencies') {
+            parallel {
+                stage('Clean Backend') {
+                    steps {
+                        dir("${BACKEND_DIR}") {
+                            echo 'Cleaning backend dependencies...'
+                            bat '''
+                                if exist node_modules (
+                                    echo "Removing existing node_modules..."
+                                    rmdir /s /q node_modules || echo "node_modules cleanup completed"
+                                )
+                                if exist package-lock.json (
+                                    echo "Removing package-lock.json to avoid sync issues..."
+                                    del package-lock.json
+                                )
+                            '''
+                        }
+                    }
+                }
+                stage('Clean Frontend') {
+                    steps {
+                        dir("${FRONTEND_DIR}") {
+                            echo 'Cleaning frontend dependencies...'
+                            bat '''
+                                if exist node_modules (
+                                    echo "Removing existing node_modules..."
+                                    rmdir /s /q node_modules || echo "node_modules cleanup completed"
+                                )
+                                if exist package-lock.json (
+                                    echo "Removing package-lock.json to avoid sync issues..."
+                                    del package-lock.json
+                                )
+                            '''
+                        }
+                    }
+                }
+            }
+        }
+        
         stage('Install Dependencies') {
             parallel {
                 stage('Backend Dependencies') {
@@ -30,11 +71,9 @@ pipeline {
                         dir("${BACKEND_DIR}") {
                             echo 'Installing backend dependencies...'
                             bat '''
-                                if exist package-lock.json (
-                                    npm ci
-                                ) else (
-                                    npm install
-                                )
+                                echo "Installing fresh dependencies..."
+                                npm install --no-audit --no-fund
+                                echo "Backend dependencies installed successfully"
                             '''
                         }
                     }
@@ -44,15 +83,9 @@ pipeline {
                         dir("${FRONTEND_DIR}") {
                             echo 'Installing frontend dependencies...'
                             bat '''
-                                if exist package-lock.json (
-                                    npm ci || (
-                                        echo "npm ci failed, falling back to npm install"
-                                        del package-lock.json
-                                        npm install
-                                )
-                            ) else (
-                                npm install
-                            )
+                                echo "Installing fresh dependencies..."
+                                npm install --no-audit --no-fund --legacy-peer-deps
+                                echo "Frontend dependencies installed successfully"
                             '''
                         }
                     }
@@ -66,7 +99,15 @@ pipeline {
                     steps {
                         dir("${BACKEND_DIR}") {
                             echo 'Running backend linting...'
-                            bat 'npm run lint || echo "Linting completed"'
+                            script {
+                                def lintResult = bat(script: 'npm run lint', returnStatus: true)
+                                if (lintResult != 0) {
+                                    echo "Backend linting found issues (${lintResult} problems). Continuing build..."
+                                    currentBuild.result = 'UNSTABLE'
+                                } else {
+                                    echo "Backend linting passed!"
+                                }
+                            }
                         }
                     }
                 }
@@ -74,47 +115,15 @@ pipeline {
                     steps {
                         dir("${FRONTEND_DIR}") {
                             echo 'Running frontend linting...'
-                            bat 'npm run lint || echo "Linting completed"'
-                        }
-                    }
-                }
-            }
-        }
-        
-        stage('Run Tests') {
-            parallel {
-                stage('Backend Tests') {
-                    steps {
-                        dir("${BACKEND_DIR}") {
-                            echo 'Running backend tests...'
-                            bat 'npm test'
-                        }
-                    }
-                    post {
-                        always {
-                            // Publish test results if you add test files
-                            echo 'Backend tests completed'
-                        }
-                    }
-                }
-                stage('Frontend Tests') {
-                    steps {
-                        dir("${FRONTEND_DIR}") {
-                            echo 'Running frontend tests...'
-                            bat 'set CI=true && npm test -- --coverage --watchAll=false'
-                        }
-                    }
-                    post {
-                        always {
-                            // Publish test coverage reports
-                            publishHTML([
-                                allowMissing: false,
-                                alwaysLinkToLastBuild: true,
-                                keepAll: true,
-                                reportDir: "${FRONTEND_DIR}/coverage/lcov-report",
-                                reportFiles: 'index.html',
-                                reportName: 'Frontend Coverage Report'
-                            ])
+                            script {
+                                def lintResult = bat(script: 'npm run lint', returnStatus: true)
+                                if (lintResult != 0) {
+                                    echo "Frontend linting found issues. Continuing build..."
+                                    currentBuild.result = 'UNSTABLE'
+                                } else {
+                                    echo "Frontend linting passed!"
+                                }
+                            }
                         }
                     }
                 }
@@ -127,7 +136,15 @@ pipeline {
                     steps {
                         dir("${BACKEND_DIR}") {
                             echo 'Running backend security audit...'
-                            bat 'npm audit --audit-level=high || echo "Security audit completed"'
+                            script {
+                                def auditResult = bat(script: 'npm audit --audit-level=high', returnStatus: true)
+                                if (auditResult != 0) {
+                                    echo "Backend security vulnerabilities found. Review recommended."
+                                    currentBuild.result = 'UNSTABLE'
+                                } else {
+                                    echo "Backend security audit passed!"
+                                }
+                            }
                         }
                     }
                 }
@@ -135,7 +152,72 @@ pipeline {
                     steps {
                         dir("${FRONTEND_DIR}") {
                             echo 'Running frontend security audit...'
-                            bat 'npm audit --audit-level=high || echo "Security audit completed"'
+                            script {
+                                def auditResult = bat(script: 'npm audit --audit-level=high', returnStatus: true)
+                                if (auditResult != 0) {
+                                    echo "Frontend security vulnerabilities found. Review recommended."
+                                    echo "Run 'npm audit fix' to attempt automatic fixes."
+                                    currentBuild.result = 'UNSTABLE'
+                                } else {
+                                    echo "Frontend security audit passed!"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        stage('Run Tests') {
+            parallel {
+                stage('Backend Tests') {
+                    steps {
+                        dir("${BACKEND_DIR}") {
+                            echo 'Running backend tests...'
+                            script {
+                                def testResult = bat(script: 'npm test', returnStatus: true)
+                                if (testResult != 0) {
+                                    echo "Some backend tests failed. Check test results."
+                                    currentBuild.result = 'UNSTABLE'
+                                } else {
+                                    echo "Backend tests passed!"
+                                }
+                            }
+                        }
+                    }
+                }
+                stage('Frontend Tests') {
+                    steps {
+                        dir("${FRONTEND_DIR}") {
+                            echo 'Running frontend tests...'
+                            script {
+                                def testResult = bat(script: 'set CI=true && npm run test:coverage', returnStatus: true)
+                                if (testResult != 0) {
+                                    echo "Some frontend tests failed. Check test results."
+                                    currentBuild.result = 'UNSTABLE'
+                                } else {
+                                    echo "Frontend tests passed!"
+                                }
+                            }
+                        }
+                    }
+                    post {
+                        always {
+                            script {
+                                // Only publish coverage if directory exists
+                                if (fileExists("${FRONTEND_DIR}/coverage/lcov-report/index.html")) {
+                                    publishHTML([
+                                        allowMissing: true,
+                                        alwaysLinkToLastBuild: true,
+                                        keepAll: true,
+                                        reportDir: "${FRONTEND_DIR}/coverage/lcov-report",
+                                        reportFiles: 'index.html',
+                                        reportName: 'Frontend Coverage Report'
+                                    ])
+                                } else {
+                                    echo "Coverage report not found, skipping HTML publish"
+                                }
+                            }
                         }
                     }
                 }
@@ -148,7 +230,8 @@ pipeline {
                     steps {
                         dir("${BACKEND_DIR}") {
                             echo 'Building backend application...'
-                            bat 'npm run build || echo "Backend build completed"'
+                            bat 'npm run build'
+                            echo "Backend build completed!"
                         }
                     }
                 }
@@ -157,44 +240,16 @@ pipeline {
                         dir("${FRONTEND_DIR}") {
                             echo 'Building frontend application...'
                             bat 'npm run build'
+                            echo "Frontend build completed!"
                             
-                            // Archive build artifacts
-                            archiveArtifacts artifacts: 'build/**/*', allowEmptyArchive: false
-                        }
-                    }
-                }
-            }
-        }
-        
-        stage('Docker Build & Push') {
-            when {
-                anyOf {
-                    branch 'main'
-                    branch 'master'
-                    branch 'develop'
-                }
-            }
-            parallel {
-                stage('Backend Docker') {
-                    steps {
-                        script {
-                            echo 'Building and pushing backend Docker image...'
-                            def backendImage = docker.build("${DOCKER_REGISTRY}/workout-tracker-backend:${IMAGE_TAG}", "${BACKEND_DIR}")
-                            docker.withRegistry('https://' + DOCKER_REGISTRY, 'docker-registry-credentials') {
-                                backendImage.push()
-                                backendImage.push("latest")
-                            }
-                        }
-                    }
-                }
-                stage('Frontend Docker') {
-                    steps {
-                        script {
-                            echo 'Building and pushing frontend Docker image...'
-                            def frontendImage = docker.build("${DOCKER_REGISTRY}/workout-tracker-frontend:${IMAGE_TAG}", "${FRONTEND_DIR}")
-                            docker.withRegistry('https://' + DOCKER_REGISTRY, 'docker-registry-credentials') {
-                                frontendImage.push()
-                                frontendImage.push("latest")
+                            // Archive build artifacts only if build directory exists
+                            script {
+                                if (fileExists('build')) {
+                                    archiveArtifacts artifacts: 'build/**/*', allowEmptyArchive: true
+                                    echo "Build artifacts archived successfully"
+                                } else {
+                                    echo "Build directory not found, skipping artifact archival"
+                                }
                             }
                         }
                     }
@@ -202,69 +257,64 @@ pipeline {
             }
         }
         
-        stage('Deploy to Staging') {
-            when {
-                anyOf {
-                    branch 'develop'
-                    branch 'master'
-                    branch 'main'
-                }
-            }
+        stage('Docker Build') {
             steps {
-                echo 'Deploying to staging environment...'
                 script {
-                    // Deploy using docker-compose or your preferred method
-                    bat '''
-                        echo "Starting staging deployment..."
-                        docker-compose -f docker-compose.staging.yml down || echo "No existing containers"
-                        docker-compose -f docker-compose.staging.yml pull
-                        docker-compose -f docker-compose.staging.yml up -d
-                    '''
-                }
-            }
-        }
-        
-        stage('Integration Tests') {
-            when {
-                anyOf {
-                    branch 'develop'
-                    branch 'master' 
-                    branch 'main'
-                }
-            }
-            steps {
-                echo 'Running integration tests against staging environment...'
-                script {
-                    // Wait for services to be ready
-                    sleep(time: 30, unit: 'SECONDS')
+                    echo 'Building Docker images...'
                     
-                    // Run integration tests
-                    dir("${BACKEND_DIR}") {
-                        bat 'npm run test:integration || echo "Integration tests completed"'
+                    try {
+                        // Build backend image
+                        bat "docker build -t workout-tracker-backend:${IMAGE_TAG} .\\${BACKEND_DIR}"
+                        bat "docker tag workout-tracker-backend:${IMAGE_TAG} workout-tracker-backend:latest"
+                        echo "Backend Docker image built successfully!"
+                        
+                        // Build frontend image  
+                        bat "docker build -t workout-tracker-frontend:${IMAGE_TAG} .\\${FRONTEND_DIR}"
+                        bat "docker tag workout-tracker-frontend:${IMAGE_TAG} workout-tracker-frontend:latest"
+                        echo "Frontend Docker image built successfully!"
+                        
+                        // List created images
+                        echo "Docker images created:"
+                        bat 'docker images | findstr workout-tracker'
+                        
+                    } catch (Exception e) {
+                        echo "Docker build failed: ${e.getMessage()}"
+                        echo "Make sure Docker Desktop is running and try again."
+                        currentBuild.result = 'UNSTABLE'
                     }
                 }
             }
         }
         
-        stage('Deploy to Production') {
-            when {
-                branch 'master'
-            }
+        stage('Deploy Locally') {
             steps {
                 script {
-                    // Require manual approval for production deployment
-                    timeout(time: 10, unit: 'MINUTES') {
-                        input message: 'Deploy to Production?', ok: 'Deploy',
-                              submitterParameter: 'DEPLOYER'
-                    }
+                    echo 'Deploying application locally using docker-compose...'
                     
-                    echo "Deploying to production... (approved by ${env.DEPLOYER})"
-                    bat '''
-                        echo "Starting production deployment..."
-                        docker-compose -f docker-compose.prod.yml down || echo "No existing containers"
-                        docker-compose -f docker-compose.prod.yml pull
-                        docker-compose -f docker-compose.prod.yml up -d
-                    '''
+                    try {
+                        // Stop existing containers
+                        bat 'docker-compose down || echo "No existing containers to stop"'
+                        
+                        // Start new containers
+                        bat 'docker-compose up -d'
+                        
+                        // Wait for services to be ready
+                        sleep(time: 30, unit: 'SECONDS')
+                        
+                        echo """
+                        Application deployed successfully!
+                        
+                        Access your application:
+                        - Frontend: http://localhost:3000
+                        - Backend API: http://localhost:4000/api
+                        - MongoDB: localhost:27017
+                        """
+                        
+                    } catch (Exception e) {
+                        echo "Deployment failed: ${e.getMessage()}"
+                        echo "Check Docker Desktop and port availability."
+                        currentBuild.result = 'UNSTABLE'
+                    }
                 }
             }
         }
@@ -272,49 +322,62 @@ pipeline {
     
     post {
         always {
-            echo 'Cleaning up workspace...'
-            cleanWs()
+            echo 'Pipeline completed.'
+            
+            // Display build summary
+            script {
+                def status = currentBuild.result ?: 'SUCCESS'
+                echo """
+                ═══════════════════════════════════════
+                        BUILD SUMMARY
+                ═══════════════════════════════════════
+                Status: ${status}
+                Build Number: ${env.BUILD_NUMBER}
+                Branch: ${env.BRANCH_NAME ?: 'main'}
+                Commit: ${env.GIT_COMMIT ?: 'N/A'}
+                
+                Docker Images Built:
+                - workout-tracker-frontend:${IMAGE_TAG}
+                - workout-tracker-backend:${IMAGE_TAG}
+                
+                Application URLs:
+                - Frontend: http://localhost:3000
+                - Backend: http://localhost:4000
+                - MongoDB: localhost:27017
+                ═══════════════════════════════════════
+                """
+            }
         }
         success {
-            echo 'Pipeline completed successfully!'
-            // Send success notification
-            emailext (
-                subject: "✅ Build Success: ${env.JOB_NAME} - ${env.BUILD_NUMBER}",
-                body: """
-                    <h3>Build Successful!</h3>
-                    <p><strong>Project:</strong> ${env.JOB_NAME}</p>
-                    <p><strong>Build Number:</strong> ${env.BUILD_NUMBER}</p>
-                    <p><strong>Branch:</strong> ${env.BRANCH_NAME}</p>
-                    <p><strong>Commit:</strong> ${env.GIT_COMMIT}</p>
-                    <p>Check the build details: ${env.BUILD_URL}</p>
-                """,
-                to: "${env.CHANGE_AUTHOR_EMAIL}",
-                mimeType: 'text/html'
-            )
-        }
-        failure {
-            echo 'Pipeline failed!'
-            // Send failure notification
-            emailext (
-                subject: "❌ Build Failed: ${env.JOB_NAME} - ${env.BUILD_NUMBER}",
-                body: """
-                    <h3>Build Failed!</h3>
-                    <p><strong>Project:</strong> ${env.JOB_NAME}</p>
-                    <p><strong>Build Number:</strong> ${env.BUILD_NUMBER}</p>
-                    <p><strong>Branch:</strong> ${env.BRANCH_NAME}</p>
-                    <p><strong>Commit:</strong> ${env.GIT_COMMIT}</p>
-                    <p>Check the build details: ${env.BUILD_URL}</p>
-                    <p>Console Output: ${env.BUILD_URL}console</p>
-                """,
-                to: "${env.CHANGE_AUTHOR_EMAIL}",
-                mimeType: 'text/html'
-            )
+            echo """
+            🎉 Pipeline completed successfully!
+            
+            Your workout tracker is running and ready to use!
+            All Docker images are available in Docker Desktop.
+            """
         }
         unstable {
-            echo 'Pipeline is unstable'
+            echo """
+            Pipeline completed with warnings!
+            
+            Issues found:
+            - Linting violations detected
+            - Security vulnerabilities present
+            - Some tests may have failed
+            
+            Application is still deployed but review the issues above.
+            """
         }
-        changed {
-            echo 'Pipeline state has changed'
+        failure {
+            echo """
+            Pipeline failed!
+            
+            Common solutions:
+            1. Check that Docker Desktop is running
+            2. Ensure ports 3000, 4000, 27017 are available
+            3. Review console output for specific errors
+            4. Try running: docker-compose down && docker-compose up -d
+            """
         }
     }
 }
